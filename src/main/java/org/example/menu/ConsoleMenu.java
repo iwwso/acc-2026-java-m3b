@@ -1,6 +1,10 @@
 package org.example.menu;
 
 import org.example.config.AppConfig;
+import org.example.fee.FeeStrategy;
+import org.example.fee.InternationalFee;
+import org.example.fee.StandardFee;
+import org.example.fee.VipDiscountFee;
 import org.example.model.FixedAmountDiscount;
 import org.example.model.NoDiscount;
 import org.example.model.Order;
@@ -50,10 +54,17 @@ public class ConsoleMenu {
 
     private void createOrder(){
         String customerName = readNonEmpty("Customer name: ");
+        AppConfig config = AppConfig.getInstance();
+        System.out.print("Currency " + config.getSupportedCurrencies() + " (Enter = " + config.getCurrency() + "): ");
+        String currency = scanner.nextLine().trim();
+        if (currency.isEmpty()) {
+            currency = config.getCurrency();
+        }
 
         try {
             currentOrder = Order.builder()
                     .customerName(customerName)
+                    .currency(currency)
                     .build();
             System.out.println("Order created for " + currentOrder.getCustomerName() + " in " + currentOrder.getCurrency());
         } catch (IllegalArgumentException e) {
@@ -97,6 +108,9 @@ public class ConsoleMenu {
         System.out.printf("Subtotal: %.2f %s%n", currentOrder.getSubtotal(), currency);
         System.out.println("Discount: " + currentOrder.getDiscount().getCode());
         System.out.printf("Total: %.2f %s%n", currentOrder.calculateTotal(), currency);
+        System.out.printf("Total with tax (%.0f%%): %.2f %s%n",
+                AppConfig.getInstance().getTaxRate() * 100,
+                paymentProcessor.calculateAmountToPay(currentOrder, new StandardFee()), currency);
     }
 
     private void applyDiscount(){
@@ -162,8 +176,28 @@ public class ConsoleMenu {
             return;
         }
 
-        PaymentResult result = paymentProcessor.process(currentOrder, paymentMethod);
+        FeeStrategy feeStrategy = chooseFeeStrategy();
+        double amount = paymentProcessor.calculateAmountToPay(currentOrder, feeStrategy);
+        System.out.printf("%s. Amount to pay: %.2f %s%n",
+                feeStrategy.getDescription(), amount, currentOrder.getCurrency());
+
+        PaymentResult result = paymentProcessor.process(currentOrder, paymentMethod, feeStrategy);
         System.out.println(result.getMessage());
+    }
+
+    private FeeStrategy chooseFeeStrategy(){
+        System.out.println("""
+                Customer type:
+                1. Standard
+                2. VIP customer
+                3. International transaction
+                """);
+        int option = readInt("Choose an option: ");
+        return switch (option) {
+            case 2 -> new VipDiscountFee();
+            case 3 -> new InternationalFee();
+            default -> new StandardFee();
+        };
     }
 
     private PaymentMethod createCreditCardPayment(){
