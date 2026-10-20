@@ -6,7 +6,7 @@ public class NoDiscount extends Discount {
     }
     @Override
     public double apply(double originalAmount) {
-        // TODO
-        return 0;
+        // no discount:the amount stays the same
+        return originalAmount;
     }
 }

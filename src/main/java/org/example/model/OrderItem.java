@@ -6,7 +6,16 @@ public class OrderItem {
     private final int quantity;
 
     public OrderItem(String name, double price, int quantity) {
-        this.name = name;
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("Item name cannot be empty");
+        }
+        if (price <= 0) {
+            throw new IllegalArgumentException("Price must be greater than zero");
+        }
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be greater than zero");
+        }
+        this.name = name.trim();
         this.price = price;
         this.quantity = quantity;
     }
@@ -17,6 +26,6 @@ public class OrderItem {
 
     @Override
     public String toString(){
-        return name + " x" + quantity + " = " + calculateTotal();
+        return name + " x" + quantity + " = " + String.format("%.2f", calculateTotal());
     }
 }
